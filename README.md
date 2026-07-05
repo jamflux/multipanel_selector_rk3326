@@ -14,8 +14,13 @@
 ### 🚀 How to Use
 1. **Flash the OS:** Install your preferred system or `.img` onto a microSD card using tools like [Rufus](https://rufus.ie/), [BalenaEtcher](https://balena.io/etcher/), or Win32DiskImager.
 2. **Prepare the DTB:** Keep the freshly flashed microSD card connected to your PC. Add or identify your console's specific `.dtb` file using the app's Forensic Inspector.
-3. **Configure & Deploy:** On the left panel, select your **Target OS Environment** and hardware profile. You can either deploy directly to the microSD card (**⚡ INJECT SYSTEM**) or export the files as a ZIP (**📦 PACKAGE DISTRIBUTION KIT**).
+3. **Configure & Deploy:** On the left panel, select your **Target OS Environment** and hardware profile. You can deploy directly to the microSD card (**⚡ INJECT SYSTEM**), export the files as a ZIP (**📦 PACKAGE DISTRIBUTION KIT**), or safely clone your current drive (**💾 SYSTEM BACKUP**).
 4. **Play:** Insert the microSD card into your handheld console, power it on, and enjoy! 🎮
+
+<br>
+
+### 💾 System Backup (1:1 RAW Image)
+Easily create a perfect bit-by-bit backup of your original stock microSD or your newly customized setup. The app directly reads the physical drive to securely clone all partitions into a single `.img` file for safe keeping (Requires Administrator privileges).
 
 <br>
 

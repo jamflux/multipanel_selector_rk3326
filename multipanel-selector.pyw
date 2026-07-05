@@ -9,6 +9,9 @@ import struct
 import binascii
 import mmap
 import sys
+import threading
+import ctypes
+from datetime import datetime
 import customtkinter as ctk
 from tkinter import filedialog
 from pathlib import Path
@@ -41,6 +44,8 @@ BTN_FLASH = "#8A2BE2"      # Violeta profundo (Acción crítica)
 BTN_FLASH_HOV = "#9B30FF"  
 BTN_ZIP = "#007FFF"        # Azul Azure
 BTN_ZIP_HOV = "#005cbf"    
+BTN_BACKUP = "#FF8C00"     # Naranja Oscuro
+BTN_BACKUP_HOV = "#FF4500" # Naranja Rojizo (Hover)
 BTN_INSPECT = "#008B8B"    # Cían oscuro
 BTN_INSPECT_HOV = "#00FFFF" # Cían neón brillante
 
@@ -57,6 +62,7 @@ LANGUAGES = {
         "panel_model": "Modelo de Panel:",
         "btn_flash": "⚡ INYECTAR SISTEMA",
         "btn_zip": "📦 EXPORTAR A ZIP",
+        "btn_backup": "💾 BACKUP DE SISTEMA",
         "section_inspect": "🔍 INSPECTOR FORENSE",
         "btn_inspect": "📂 Analizar Archivo DTB\n(o arrastra el archivo aquí)",
         "waiting_dtb": "[ A LA ESPERA DE ARCHIVO DTB ]",
@@ -66,6 +72,7 @@ LANGUAGES = {
         "msg_sd_warning": "No se ha detectado ninguna unidad SD o volumen extraíble montado en el sistema.",
         "msg_base_dir_error": "Falta el directorio base del dispositivo:\n{}",
         "msg_success_inject": "El sistema {} ha sido inyectado y adaptado exitosamente.",
+        "msg_admin_required": "Para realizar una lectura física del disco se requieren privilegios de Administrador.\n\nAl presionar ACEPTAR, la aplicación se reiniciará automáticamente solicitando los permisos necesarios.",
         "log_ready": "Sistema Flux Digital inicializado. A la espera de carga de archivos.",
         "log_db_loaded": "Firmas criptográficas cargadas en memoria: {}",
         "log_os_changed": "🔄 Entorno actualizado a: {}. Reconfigurando motor de inyección.",
@@ -94,6 +101,14 @@ LANGUAGES = {
         "log_pack_zip": "=== EMPAQUETANDO KIT DE DISTRIBUCIÓN PARA {} ===\n",
         "log_zip_ok": "\n✅ Kit de distribución exportado correctamente a: {}",
         "log_zip_fail": "\n[!] FALLO AL EMPAQUETAR: {}",
+        "log_backup_start": "\n=== INICIANDO BACKUP DE SISTEMA ===",
+        "log_backup_info": "  ➤ Origen Físico: {}\n  ➤ Tamaño estimado: {:.2f} GB",
+        "log_backup_progress": "  ➤ Progreso: {}% completado...",
+        "log_backup_progress_mb": "  ➤ Progreso: {:.2f} MB copiados...",
+        "log_backup_ok": "\n✅ Backup completado exitosamente en:\n{}",
+        "log_backup_err": "\n❌ Error al crear backup: {}",
+        "log_backup_err_perm": "\n❌ Permisos insuficientes. Ejecute la aplicación como Administrador.",
+        "msg_backup_ok": "El backup de imagen se ha guardado correctamente como:\n{}",
         "log_copy_rename": "  + Clonado y adaptado: {} -> {}",
         "log_copy_intact": "  + Clonado intacto: {}",
         "log_gen_uboot_dual": "  + Compilación U-Boot Dual: rg351v-uboot.dtb y rg351p-uboot.dtb",
@@ -117,6 +132,7 @@ LANGUAGES = {
         "panel_model": "Display Panel Model:",
         "btn_flash": "⚡ INJECT SYSTEM",
         "btn_zip": "📦 PACKAGE DISTRIBUTION KIT",
+        "btn_backup": "💾 SYSTEM BACKUP",
         "section_inspect": "🔍 FORENSIC INSPECTOR",
         "btn_inspect": "📂 Analyze DTB File\n(or drag & drop file here)",
         "waiting_dtb": "[ AWAITING DTB FILE ]",
@@ -126,6 +142,7 @@ LANGUAGES = {
         "msg_sd_warning": "No valid SD volume or removable drive has been detected in the system.",
         "msg_base_dir_error": "Missing base device directory:\n{}",
         "msg_success_inject": "The {} environment has been successfully injected and adapted.",
+        "msg_admin_required": "To perform a physical disk read, Administrator privileges are required.\n\nBy clicking OK, the application will automatically restart and request the necessary permissions.",
         "log_ready": "Flux Digital System initialized. Awaiting payload.",
         "log_db_loaded": "Cryptographic signatures loaded into memory: {}",
         "log_os_changed": "🔄 Environment updated to: {}. Reconfiguring injection engine.",
@@ -154,6 +171,14 @@ LANGUAGES = {
         "log_pack_zip": "=== PACKAGING DISTRIBUTION KIT FOR {} ===\n",
         "log_zip_ok": "\n✅ Distribution Kit successfully exported to: {}",
         "log_zip_fail": "\n[!] PACKAGING FAILURE: {}",
+        "log_backup_start": "\n=== STARTING SYSTEM BACKUP ===",
+        "log_backup_info": "  ➤ Physical Source: {}\n  ➤ Estimated size: {:.2f} GB",
+        "log_backup_progress": "  ➤ Progress: {}% completed...",
+        "log_backup_progress_mb": "  ➤ Progress: {:.2f} MB copied...",
+        "log_backup_ok": "\n✅ Backup successfully completed at:\n{}",
+        "log_backup_err": "\n❌ Backup error: {}",
+        "log_backup_err_perm": "\n❌ Insufficient permissions. Run the application as Administrator.",
+        "msg_backup_ok": "The image backup was successfully saved as:\n{}",
         "log_copy_rename": "  + Cloned and adapted: {} -> {}",
         "log_copy_intact": "  + Cloned intact: {}",
         "log_gen_uboot_dual": "  + Dual U-Boot Compilation: rg351v-uboot.dtb & rg351p-uboot.dtb",
@@ -172,6 +197,7 @@ LANGUAGES = {
 class FluxDialog(ctk.CTkToplevel):
     def __init__(self, master, title, message, dialog_type="info"):
         super().__init__(master)
+        
         self.title(title)
         self.geometry("480x260")
         self.resizable(False, False)
@@ -241,9 +267,11 @@ class FluxMasterFlasher(CTkDnD):
         super().__init__()
         
         self.current_lang = "ES"
+        self._bypass_uipi()
+        
         self.title(self.t("title"))
-        self.geometry("980x570")
-        self.minsize(880, 550)
+        self.geometry("980x590")
+        self.minsize(880, 570)
         self.configure(fg_color=BG_FRAME)
         
         self.apply_dynamic_icon()
@@ -253,10 +281,26 @@ class FluxMasterFlasher(CTkDnD):
         
         self.db_firmas = {}
         self.target_drive = ctk.StringVar(value=self.t("waiting_sd"))
+        self.is_backing_up = False
         
         self.cargar_base_datos()
         self.construir_ui()
         self.auto_detect_sd()
+
+    def _bypass_uipi(self):
+        """Intenta evadir el bloqueo UIPI de Windows cuando se ejecuta como Administrador para permitir Drag&Drop"""
+        if os.name == 'nt':
+            try:
+                MSGFLT_ADD = 1
+                WM_DROPFILES = 0x0233
+                WM_COPYDATA = 0x004A
+                WM_COPYGLOBALDATA = 0x0049
+                
+                ctypes.windll.user32.ChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD)
+                ctypes.windll.user32.ChangeWindowMessageFilter(WM_COPYDATA, MSGFLT_ADD)
+                ctypes.windll.user32.ChangeWindowMessageFilter(WM_COPYGLOBALDATA, MSGFLT_ADD)
+            except Exception:
+                pass
 
     def apply_dynamic_icon(self):
         try:
@@ -362,7 +406,10 @@ class FluxMasterFlasher(CTkDnD):
         self.btn_flash.pack(fill="x", padx=15, pady=(10, 5))
         
         self.btn_zip = ctk.CTkButton(self.left_panel, text=self.t("btn_zip"), height=35, text_color="#000000", fg_color=BTN_ZIP, hover_color=BTN_ZIP_HOV, font=ctk.CTkFont(weight="bold", size=12), command=self.exportar_zip)
-        self.btn_zip.pack(fill="x", padx=15, pady=(5, 10))
+        self.btn_zip.pack(fill="x", padx=15, pady=(5, 5))
+
+        self.btn_backup = ctk.CTkButton(self.left_panel, text=self.t("btn_backup"), height=35, text_color="#000000", fg_color=BTN_BACKUP, hover_color=BTN_BACKUP_HOV, font=ctk.CTkFont(weight="bold", size=12), command=self.ejecutar_backup)
+        self.btn_backup.pack(fill="x", padx=15, pady=(5, 10))
 
         # ================= PANEL DERECHO (INSPECTOR) =================
         self.right_panel = ctk.CTkFrame(self, corner_radius=8, fg_color="#121417")
@@ -427,6 +474,7 @@ class FluxMasterFlasher(CTkDnD):
         self.lbl_panel.configure(text=self.t("panel_model"))
         self.btn_flash.configure(text=self.t("btn_flash"))
         self.btn_zip.configure(text=self.t("btn_zip"))
+        self.btn_backup.configure(text=self.t("btn_backup"))
         self.lbl_inspect_title.configure(text=self.t("section_inspect"))
         self.btn_inspect.configure(text=self.t("btn_inspect"))
         
@@ -533,6 +581,150 @@ class FluxMasterFlasher(CTkDnD):
                     return
         self.target_drive.set(self.t("sd_not_detected"))
         self.after(3000, self.auto_detect_sd)
+
+    # ================= SISTEMA DE BACKUP =================
+    def get_physical_drive(self, mountpoint):
+        if os.name == 'nt':
+            try:
+                import wmi
+                import pythoncom
+                pythoncom.CoInitialize()
+                c = wmi.WMI()
+                drive_letter = os.path.splitdrive(mountpoint)[0]
+                
+                # LogicalDisk -> Partition -> DiskDrive 
+                for part in c.query(f"ASSOCIATORS OF {{Win32_LogicalDisk.DeviceID='{drive_letter}'}} WHERE AssocClass=Win32_LogicalDiskToPartition"):
+                    for disk in c.query(f"ASSOCIATORS OF {{Win32_DiskPartition.DeviceID='{part.DeviceID}'}} WHERE AssocClass=Win32_DiskDriveToDiskPartition"):
+                        dev_id = disk.DeviceID
+                        size = int(disk.Size) if disk.Size else 0
+                        pythoncom.CoUninitialize()
+                        return dev_id, size
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+            
+            # Fallback en caso de que WMI falle o no encuentre
+            drive_letter = os.path.splitdrive(mountpoint)[0]
+            try:
+                size = shutil.disk_usage(mountpoint).total
+            except:
+                size = 0
+            return f"\\\\.\\{drive_letter}", size
+        else:
+            for p in psutil.disk_partitions():
+                if p.mountpoint == mountpoint:
+                    dev = p.device
+                    base_dev = re.sub(r'\d+$', '', dev)
+                    return base_dev, 0
+            return None, 0
+
+    def ejecutar_backup(self):
+        sd_path = self.target_drive.get()
+        if not os.path.exists(sd_path) or "Esperando" in sd_path or "Waiting" in sd_path or "No Detectada" in sd_path or "Not Detected" in sd_path:
+            FluxDialog(self, self.t("btn_warning"), self.t("msg_sd_warning"), "warning")
+            return
+
+        # Verificación de privilegios de administrador en Windows
+        if os.name == 'nt':
+            try:
+                is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+            except Exception:
+                is_admin = False
+                
+            if not is_admin:
+                dialog = FluxDialog(self, self.t("btn_warning"), self.t("msg_admin_required"), "warning")
+                if dialog.result:
+                    script_path = os.path.abspath(sys.argv[0])
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script_path}"', None, 1)
+                    sys.exit()
+                return
+
+        if self.is_backing_up:
+            return
+            
+        self.is_backing_up = True
+        threading.Thread(target=self._backup_worker, args=(sd_path,), daemon=True).start()
+
+    def _backup_worker(self, sd_path):
+        self.registrar_log(self.t("log_backup_start"), "title")
+        
+        try:
+            raw_device, total_size = self.get_physical_drive(sd_path)
+            if not raw_device:
+                raise Exception("No se detectó el dispositivo físico.")
+            
+            backup_dir = Path("backup")
+            backup_dir.mkdir(exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%d%m%Y%H%M")
+            backup_filename = f"{timestamp}.img"
+            backup_path = backup_dir / backup_filename
+            
+            if total_size > 0:
+                self.registrar_log(self.t("log_backup_info").format(raw_device, total_size / (1024**3)), "info")
+            else:
+                self.registrar_log(self.t("log_backup_info").format(raw_device, 0.0), "info")
+                
+            chunk_size = 16 * 1024 * 1024 # 16 MB chunks
+            sector_size = 512
+            bytes_read = 0
+            last_percent = -1
+            last_mb = 0
+            
+            with open(raw_device, "rb") as src, open(backup_path, "wb") as dst:
+                while True:
+                    if total_size > 0 and bytes_read >= total_size:
+                        break # Fin exitoso (Leímos todo el disco)
+                        
+                    bytes_to_read = chunk_size
+                    if total_size > 0 and (total_size - bytes_read) < chunk_size:
+                        bytes_to_read = int(total_size - bytes_read)
+                        rem = bytes_to_read % sector_size
+                        if rem != 0: 
+                            bytes_to_read += (sector_size - rem) # Alinear estricto a sector
+                            
+                    try:
+                        chunk = src.read(bytes_to_read)
+                    except OSError as e:
+                        # Si el Kernel bloquea el I/O al chocar con el límite final del disco lo tratamos como EOF
+                        if bytes_read > 0 and (total_size == 0 or (total_size - bytes_read) < (chunk_size * 2)):
+                            break
+                        raise e
+                        
+                    if not chunk:
+                        break
+                        
+                    # Truncamos los bytes de relleno para guardar el tamaño exacto si nos pasamos por el alineamiento de sector
+                    actual_len = len(chunk)
+                    if total_size > 0 and bytes_read + actual_len > total_size:
+                        actual_len = int(total_size - bytes_read)
+                        chunk = chunk[:actual_len]
+                        
+                    dst.write(chunk)
+                    bytes_read += actual_len
+                    
+                    if total_size > 0:
+                        percent = int((bytes_read / total_size) * 100)
+                        if percent % 5 == 0 and percent != last_percent:
+                            self.registrar_log(self.t("log_backup_progress").format(percent), "info")
+                            last_percent = percent
+                    else:
+                        mb_read = bytes_read / (1024**2)
+                        if mb_read - last_mb >= 500: # Log cada 500 MB si no se conoce el límite
+                            self.registrar_log(self.t("log_backup_progress_mb").format(mb_read), "info")
+                            last_mb = mb_read
+                            
+            self.registrar_log(self.t("log_backup_ok").format(backup_path.resolve()), "success")
+            self.after(0, lambda: FluxDialog(self, self.t("btn_success"), self.t("msg_backup_ok").format(backup_filename), "success"))
+            
+        except PermissionError:
+            self.registrar_log(self.t("log_backup_err_perm"), "error")
+            self.after(0, lambda: FluxDialog(self, self.t("btn_error"), self.t("log_backup_err_perm"), "error"))
+        except Exception as e:
+            self.registrar_log(self.t("log_backup_err").format(e), "error")
+            self.after(0, lambda: FluxDialog(self, self.t("btn_error"), self.t("log_backup_err").format(e), "error"))
+        finally:
+            self.is_backing_up = False
 
     # ================= MOTOR FDT NATIVO =================
     @staticmethod

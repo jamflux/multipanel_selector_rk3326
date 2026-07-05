@@ -47,7 +47,7 @@ BTN_INSPECT_HOV = "#00FFFF" # Cían neón brillante
 # ================= DICCIONARIOS DE IDIOMAS (i18n) =================
 LANGUAGES = {
     "ES": {
-        "title": "GoFluxDigital.com - Panel Detector & Flasher v1.0",
+        "title": "GoFluxDigital.com - Panel Detector & Flasher for RK3326 v1.0",
         "section_inject": "⚙️ DESPLIEGUE DE SISTEMA (MULTI-OS)",
         "waiting_sd": "Esperando unidad externa...",
         "sd_not_detected": "Volumen No Detectado",
@@ -98,7 +98,7 @@ LANGUAGES = {
         "log_copy_intact": "  + Clonado intacto: {}",
         "log_gen_uboot_dual": "  + Compilación U-Boot Dual: rg351v-uboot.dtb y rg351p-uboot.dtb",
         "log_gen_uboot_multi": "  + Compilación U-Boot Múltiple: rg351mp, rg351v y rg351p",
-        "log_gen_kernel_dtb": "  + Compilación Kernel DTB: rg351mp-kernel.dtb y rg351p-kernel",
+        "log_gen_kernel_dtb": "  + Compilación Kernel DTB: rg351mp-kernel.dtb y rg351p-kernel.dtb",
         "log_inject_kernel": "  + Se inyectó Kernel alternativo de manera segura (Image)",
         "log_no_kernel": "  ⚠️ Advertencia: No se encontró el Kernel alternativo en consolas/kernel/original/Image",
         "btn_error": "Error",
@@ -107,7 +107,7 @@ LANGUAGES = {
         "btn_ok": "ACEPTAR"
     },
     "EN": {
-        "title": "GoFluxDigital.com - Panel Detector & Flasher v1.0",
+        "title": "GoFluxDigital.com - Panel Detector & Flasher for RK3326 v1.0",
         "section_inject": "⚙️ SYSTEM DEPLOYMENT (MULTI-OS)",
         "waiting_sd": "Waiting for external drive...",
         "sd_not_detected": "Volume Not Detected",
@@ -158,7 +158,7 @@ LANGUAGES = {
         "log_copy_intact": "  + Cloned intact: {}",
         "log_gen_uboot_dual": "  + Dual U-Boot Compilation: rg351v-uboot.dtb & rg351p-uboot.dtb",
         "log_gen_uboot_multi": "  + Multi U-Boot Compilation: rg351mp, rg351v & rg351p",
-        "log_gen_kernel_dtb": "  + Kernel DTB Compilation: rg351mp-kernel.dtb & rg351p-kernel",
+        "log_gen_kernel_dtb": "  + Kernel DTB Compilation: rg351mp-kernel.dtb & rg351p-kernel.dtb",
         "log_inject_kernel": "  + Alternative Kernel safely injected (Image)",
         "log_no_kernel": "  ⚠️ Warning: Alternative Kernel not found in consolas/kernel/original/Image",
         "btn_error": "Error",
@@ -798,7 +798,7 @@ class FluxMasterFlasher(CTkDnD):
                 elif item.name.endswith("uboot.dtb"):
                     # Duplicado simultáneo exigido por el panel original
                     shutil.copy2(item, Path(ruta_destino) / "rg351mp-kernel.dtb")
-                    shutil.copy2(item, Path(ruta_destino) / "rg351p-kernel")
+                    shutil.copy2(item, Path(ruta_destino) / "rg351p-kernel.dtb")
                     self.registrar_log(self.t("log_gen_kernel_dtb"), "success")
                     continue
 

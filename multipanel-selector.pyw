@@ -47,7 +47,7 @@ BTN_INSPECT_HOV = "#00FFFF" # Cían neón brillante
 # ================= DICCIONARIOS DE IDIOMAS (i18n) =================
 LANGUAGES = {
     "ES": {
-        "title": "GoFluxDigital.com - Panel Detector & Flasher v1 for RK3326",
+        "title": "GoFluxDigital.com - Panel Detector & Flasher v1.0",
         "section_inject": "⚙️ DESPLIEGUE DE SISTEMA (MULTI-OS)",
         "waiting_sd": "Esperando unidad externa...",
         "sd_not_detected": "Volumen No Detectado",
@@ -98,7 +98,7 @@ LANGUAGES = {
         "log_copy_intact": "  + Clonado intacto: {}",
         "log_gen_uboot_dual": "  + Compilación U-Boot Dual: rg351v-uboot.dtb y rg351p-uboot.dtb",
         "log_gen_uboot_multi": "  + Compilación U-Boot Múltiple: rg351mp, rg351v y rg351p",
-        "log_gen_kernel_dtb": "  + Compilación Kernel DTB: rg351mp-kernel.dtb y rg351p-kernel.dtb",
+        "log_gen_kernel_dtb": "  + Compilación Kernel DTB: rg351mp-kernel.dtb y rg351p-kernel",
         "log_inject_kernel": "  + Se inyectó Kernel alternativo de manera segura (Image)",
         "log_no_kernel": "  ⚠️ Advertencia: No se encontró el Kernel alternativo en consolas/kernel/original/Image",
         "btn_error": "Error",
@@ -107,7 +107,7 @@ LANGUAGES = {
         "btn_ok": "ACEPTAR"
     },
     "EN": {
-        "title": "Flux Digital - Master Flasher PRO V3",
+        "title": "GoFluxDigital.com - Panel Detector & Flasher v1.0",
         "section_inject": "⚙️ SYSTEM DEPLOYMENT (MULTI-OS)",
         "waiting_sd": "Waiting for external drive...",
         "sd_not_detected": "Volume Not Detected",
@@ -289,6 +289,14 @@ class FluxMasterFlasher(CTkDnD):
         self.current_lang = choice
         self.update_ui_texts()
         
+        # Limpiar la consola y reescribir los logs iniciales en el idioma correcto
+        self.consola.configure(state="normal")
+        self.consola.delete("0.0", "end")
+        self.consola.configure(state="disabled")
+        
+        self.registrar_log(self.t("log_ready"), "success")
+        self.registrar_log(self.t("log_db_loaded").format(len(self.db_firmas)), "info")
+        
     def cargar_base_datos(self):
         if self.db_path.exists():
             try:
@@ -316,10 +324,10 @@ class FluxMasterFlasher(CTkDnD):
             command=self.toggle_language, 
             selected_color=BTN_INSPECT, 
             selected_hover_color=BTN_INSPECT_HOV,
-            unselected_color="#7A7A7A",        # Fondo gris para los inactivos
-            unselected_hover_color="#8A8A8A",  # Gris más claro al pasar el cursor (inactivo)
-            fg_color="#4A4D55",                # Fondo contenedor del botón
-            text_color="#000000"               # Texto en negro puro
+            unselected_color="#7A7A7A",        
+            unselected_hover_color="#8A8A8A",  
+            fg_color="#4A4D55",                
+            text_color="#000000"               
         )
         self.seg_lang.set("ES")
         self.seg_lang.pack(fill="x", padx=15, pady=(10, 5))
@@ -332,7 +340,6 @@ class FluxMasterFlasher(CTkDnD):
         
         self.lbl_os = ctk.CTkLabel(self.left_panel, text=self.t("os_target"), text_color="#A0A0A0")
         self.lbl_os.pack(anchor="w", padx=15)
-        # Removido Rocknix del ComboBox
         self.cb_os = ctk.CTkComboBox(self.left_panel, values=["ArkOS 4 Clone", "ArkOS Original", "dArkOS", "dArkOS RE"], height=30, command=self.on_os_change)
         self.cb_os.pack(fill="x", padx=15, pady=(0, 15))
         
@@ -791,7 +798,7 @@ class FluxMasterFlasher(CTkDnD):
                 elif item.name.endswith("uboot.dtb"):
                     # Duplicado simultáneo exigido por el panel original
                     shutil.copy2(item, Path(ruta_destino) / "rg351mp-kernel.dtb")
-                    shutil.copy2(item, Path(ruta_destino) / "rg351p-kernel.dtb")
+                    shutil.copy2(item, Path(ruta_destino) / "rg351p-kernel")
                     self.registrar_log(self.t("log_gen_kernel_dtb"), "success")
                     continue
 

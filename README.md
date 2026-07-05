@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://i.ibb.co/tTL7VsH6/imagen-2026-07-04-204737936.png" alt="Flux Digital - Master Flasher Portada" width="800">
+  <img src="https://i.ibb.co/8qt394G/imagen-2026-07-04-225134530.png" alt="Flux Digital - Master Flasher Portada" width="800">
 </div>
 
 <br>
